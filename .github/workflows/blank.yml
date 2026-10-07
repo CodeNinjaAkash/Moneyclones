@@ -1,0 +1,33 @@
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip and find project
+        run: |
+          ls -la
+          Z=""
+          for z in *.zip; do
+            [ -e "$z" ] || continue
+            if unzip -l "$z" | grep -q "settings.gradle.kts"; then Z="$z"; fi
+          done
+          if [ -z "$Z" ]; then echo "No source zip found (need a zip containing settings.gradle.kts)"; exit 1; fi
+          echo "Using $Z"
+          mkdir src
+          unzip -qo "$Z" -d src
+          S=$(find src -name settings.gradle.kts | head -1)
+          D=$(dirname "$S")
+          echo "PROJ=$D" >> $GITHUB_ENV
+          printf "android.useAndroidX=true\nandroid.nonTransitiveRClass=true\norg.gradle.jvmargs=-Xmx3g\n" > "$D/gradle.properties"
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: 8.7 }
+      - run: cd "$PROJ" && gradle assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MoneyClone-apk
+          path: ${{ env.PROJ }}/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
