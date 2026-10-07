@@ -1,0 +1,19 @@
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: unzip -qo "$(ls -t MoneyClone*.zip | head -1)"
+      - run: |
+          printf "android.useAndroidX=true\nandroid.nonTransitiveRClass=true\norg.gradle.jvmargs=-Xmx3g\n" > MoneyClone/gradle.properties
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: 8.7 }
+      - run: cd MoneyClone && gradle assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MoneyClone-apk
+          path: MoneyClone/app/build/outputs/apk/debug/app-debug.apk
